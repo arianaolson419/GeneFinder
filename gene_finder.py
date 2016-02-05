@@ -46,7 +46,7 @@ def get_complement(nucleotide):
     else:
         print nucleotide + ' is not a valid nucleotide' #error message if the nucleotide is not a valid letter
         return False
-    pass
+    
 
 
 def get_reverse_complement(dna):
@@ -73,7 +73,7 @@ def get_reverse_complement(dna):
         reverse_complement = reverse_complement + complement[-index]
         index += 1
     return reverse_complement
-    pass
+    
 get_reverse_complement('ATGCCGTTT')
 
 def rest_of_ORF(dna):
@@ -117,7 +117,7 @@ def rest_of_ORF(dna):
             snippet = snippet + dna[k:]
         return snippet
 
-    pass
+    
 
 def find_all_ORFs_oneframe(dna, start_at_index):
     """ Finds all non-nested open reading frames in the given DNA
@@ -156,7 +156,7 @@ def find_all_ORFs_oneframe(dna, start_at_index):
                 #advances three positions forward to check for 'ATG' in the next chunk
                 i = i + 3
     return list_orf
-    pass
+    
 
 
 def find_all_ORFs(dna):
@@ -183,8 +183,9 @@ def find_all_ORFs(dna):
             all_frames.append(rest_of_ORF(i))
         j = j + 1
     return all_frames
-    pass
+    
 find_all_ORFs('ATGCATATGTAGGATGC')
+
 def find_all_ORFs_both_strands(dna):
     """ Finds all non-nested open reading frames in the given DNA sequence on both
         strands.
@@ -201,28 +202,77 @@ def find_all_ORFs_both_strands(dna):
     forwards = find_all_ORFs(dna)
     backwards = find_all_ORFs(reverse_complement)
     return forwards + backwards
-    pass
 
 def longest_ORF(dna):
     """ Finds the longest ORF on both strands of the specified DNA and returns it
         as a string
+
+        needs a test to make sure the function can pick the largest element 
+        out of lists containing more than two entries
+        needs to return an empty string for an empty list
+
+    >>> longest_ORF('ATGCGAATGTAGCATCAAAATGCAT')
+    'ATGCATTTTGATGCTACATTCGCAT'
     >>> longest_ORF("ATGCGAATGTAGCATCAAA")
     'ATGCTACATTCGCAT'
+    >>> longest_ORF('AAAAAAAAA')
+    ''
     """
-    # TODO: implement this
-    pass
-
+    ORF_list = find_all_ORFs_both_strands(dna)
+    #each iteration compares the 'first' element of the list with the next
+    #the varible first is reassigned to the larger entry of the two
+    #moves on to the next entry to compare with 'first'
+    #once all element have been cycled through, the largest element in the list is assigned to 'first'
+    
+    if len(ORF_list) > 0:
+        i = 0
+        first = ORF_list[0]
+        for index in ORF_list:
+            if len(ORF_list) > i + 1:
+                second = ORF_list[i+1]
+                if len(first) < len(second):
+                    first = second  
+                    i = i + 1
+                else:
+                    i = i + 1
+            #stops comparison is only one list element
+            else:
+                break
+        return first
+    else:
+        return ''
+  
+import random
 
 def longest_ORF_noncoding(dna, num_trials):
     """ Computes the maximum length of the longest ORF over num_trials shuffles
         of the specfied DNA sequence
 
         dna: a DNA sequence
-        num_trials: the number of random shuffles
-        returns: the maximum length longest ORF """
-    # TODO: implement this
-    pass
-
+        num_trials: the number of random shuffles returns: the maximum length longest ORF 
+        It's hard to do a doctest for a random outcome, but I think that the more shuffles, 
+        the higher the probability will be that the longest ORF will be as long as the dna strand
+        I would also like my function to handle strings of zero lengths
+        >>> longest_ORF_noncoding('', 1)
+        0
+        >>> longest_ORF_noncoding('ATGCGAATGTAGCATCAAAATGCAT',200)
+        25
+        """
+    strands = []
+    longest_orfs = []
+    lengths = []
+    i = 0
+    #generates a list of all orfs of all trials
+    while i < num_trials:
+        #shuffles original sequence
+        rand_strand = shuffle_string(dna)
+        #finds all the ORFs of that string, creates a list
+        strands.append(rand_strand)
+        #adds the longest orf to a list of the longest orfs in each trial
+        longest_orfs.append(longest_ORF(rand_strand))
+        i += 1
+    #returns the length of the longest string
+    return len(max(longest_orfs, key=len))
 
 def coding_strand_to_AA(dna):
     """ Computes the Protein encoded by a sequence of DNA.  This function
@@ -232,14 +282,29 @@ def coding_strand_to_AA(dna):
         dna: a DNA sequence represented as a string
         returns: a string containing the sequence of amino acids encoded by the
                  the input DNA fragment
+        I don't think anything needs to be tested besides returning a string of 
+        amino acids and being able to handle dna strands that aren't a multiple
+        of 3 long
 
         >>> coding_strand_to_AA("ATGCGA")
         'MR'
         >>> coding_strand_to_AA("ATGCCCGCTTT")
         'MPA'
     """
-    # TODO: implement this
-    pass
+    aa_sequence = ''
+    i = 0
+    #shortens dna until its length is a multiple of 3
+    while len(dna)%3 != 0:
+        dna = dna[:len(dna)-1]
+    #looks up the codon and adds an amino acid to the sequence
+    while i<len(dna):
+        codon = dna[i:i+3]
+        amino_acid = aa_table[codon]
+        aa_sequence= aa_sequence + amino_acid
+        i = i+3
+
+    return aa_sequence
+
 
 
 def gene_finder(dna):
@@ -247,10 +312,32 @@ def gene_finder(dna):
 
         dna: a DNA sequence
         returns: a list of all amino acid sequences coded by the sequence dna.
-    """
-    # TODO: implement this
-    pass
 
+        I can't do much to verify that my amino acid squence is right, but my gene_finder 
+        should return a list
+
+        It is heavily reliant on other previously tested functions, so no other doctest 
+        are necessary
+
+        >>> type(gene_finder(dna))
+        <type 'list'>
+    """
+    genes = []
+    amino_acid_sequence = []
+    threshold = longest_ORF_noncoding(dna, 1500)
+    ORFs = find_all_ORFs_both_strands(dna)
+    for ORF in ORFs:
+        if len(ORF) > threshold:
+            genes.append(ORF)
+    for gene in genes:
+        amino_acid_sequence.append(coding_strand_to_AA(gene))
+    return amino_acid_sequence
+
+from load import load_seq
+dna=load_seq("./data/X73525.fa")
+
+print gene_finder(dna)
+print'done'
 if __name__ == "__main__":
     import doctest
-    doctest.run_docstring_examples(find_all_ORFs_both_strands, globals())
+    doctest.run_docstring_examples(gene_finder, globals())
